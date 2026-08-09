@@ -1,0 +1,159 @@
+import { describe, expect, it } from 'vitest';
+import {
+  allShipsSunk,
+  canPlace,
+  createEmptyBoard,
+  fireAt,
+  placeShip,
+  randomBoard,
+  shipCells,
+  toIndex,
+} from './board';
+import { chooseShot, createAiState, updateAiAfterShot } from './ai';
+import { createInitialState, reducer } from './state';
+import { SHIP_SPECS, type Board } from './types';
+
+const spec = (id: string) => SHIP_SPECS.find((s) => s.id === id)!;
+
+describe('shipCells', () => {
+  it('does not wrap horizontally across rows', () => {
+    expect(shipCells(toIndex(0, 7), 5, 'horizontal')).toBeNull();
+    expect(shipCells(toIndex(0, 5), 5, 'horizontal')).toEqual([5, 6, 7, 8, 9]);
+  });
+
+  it('rejects vertical ships past the bottom edge', () => {
+    expect(shipCells(toIndex(7, 0), 5, 'vertical')).toBeNull();
+    expect(shipCells(toIndex(5, 0), 5, 'vertical')).toEqual([50, 60, 70, 80, 90]);
+  });
+});
+
+describe('placement', () => {
+  it('rejects overlapping ships', () => {
+    const board = placeShip(createEmptyBoard(), spec('carrier'), 0, 'horizontal')!;
+    expect(canPlace(board, toIndex(0, 4), 4, 'horizontal')).toBe(false);
+    expect(placeShip(board, spec('battleship'), toIndex(0, 4), 'horizontal')).toBeNull();
+    expect(placeShip(board, spec('battleship'), toIndex(1, 0), 'horizontal')).not.toBeNull();
+  });
+
+  it('rejects placing the same ship twice', () => {
+    const board = placeShip(createEmptyBoard(), spec('carrier'), 0, 'horizontal')!;
+    expect(placeShip(board, spec('carrier'), toIndex(5, 0), 'horizontal')).toBeNull();
+  });
+
+  it('random boards always contain the full non-overlapping fleet', () => {
+    for (let i = 0; i < 200; i += 1) {
+      const board = randomBoard();
+      const cells = board.ships.flatMap((s) => s.cells);
+      expect(board.ships).toHaveLength(SHIP_SPECS.length);
+      expect(new Set(cells).size).toBe(cells.length);
+      expect(cells.every((c) => c >= 0 && c < 100)).toBe(true);
+    }
+  });
+});
+
+describe('fireAt', () => {
+  const board = placeShip(createEmptyBoard(), spec('destroyer'), 0, 'horizontal')!;
+
+  it('records hits, misses and sinks', () => {
+    const first = fireAt(board, 0);
+    expect(first.hit).toBe(true);
+    expect(first.sunk).toBeNull();
+    const second = fireAt(first.board, 1);
+    expect(second.sunk?.id).toBe('destroyer');
+    expect(second.allSunk).toBe(true);
+    const miss = fireAt(board, 50);
+    expect(miss.hit).toBe(false);
+    expect(miss.board.misses).toEqual([50]);
+  });
+
+  it('ignores repeat shots without mutating the board', () => {
+    const once = fireAt(board, 0).board;
+    const twice = fireAt(once, 0);
+    expect(twice.board).toBe(once);
+    expect(twice.board.hits).toEqual([0]);
+  });
+
+  it('treats an empty board as not fully sunk', () => {
+    expect(allShipsSunk(createEmptyBoard())).toBe(false);
+  });
+});
+
+describe('ai', () => {
+  it('never repeats a shot over a full game', () => {
+    let board: Board = randomBoard();
+    let ai = createAiState();
+    const seen = new Set<number>();
+    for (let i = 0; i < 100; i += 1) {
+      const shot = chooseShot(board, ai);
+      expect(seen.has(shot.index)).toBe(false);
+      seen.add(shot.index);
+      const result = fireAt(board, shot.index);
+      board = result.board;
+      ai = updateAiAfterShot(shot.ai, board, shot.index, result.hit, result.sunk !== null);
+    }
+    expect(seen.size).toBe(100);
+  });
+
+  it('targets neighbours after a hit', () => {
+    const board = placeShip(createEmptyBoard(), spec('cruiser'), toIndex(4, 4), 'horizontal')!;
+    const result = fireAt(board, toIndex(4, 4));
+    const ai = updateAiAfterShot(createAiState(), result.board, toIndex(4, 4), true, false);
+    expect(ai.targets).toContain(toIndex(4, 5));
+    const next = chooseShot(result.board, ai);
+    expect(ai.targets).toContain(next.index);
+  });
+
+  it('clears the target queue once a ship is sunk', () => {
+    const ai = updateAiAfterShot({ targets: [1, 2] }, createEmptyBoard(), 0, true, true);
+    expect(ai.targets).toEqual([]);
+  });
+});
+
+describe('reducer', () => {
+  const placeAll = () => {
+    let state = createInitialState();
+    SHIP_SPECS.forEach((s, row) => {
+      state = reducer(state, { type: 'selectShip', id: s.id });
+      state = reducer(state, { type: 'placeShip', index: toIndex(row * 2, 0) });
+    });
+    return state;
+  };
+
+  it('will not start until the whole fleet is placed', () => {
+    const state = createInitialState();
+    expect(reducer(state, { type: 'start' }).phase).toBe('placement');
+    const ready = placeAll();
+    const started = reducer(ready, { type: 'start' });
+    expect(started.phase).toBe('playing');
+    expect(started.aiBoard.ships).toHaveLength(SHIP_SPECS.length);
+  });
+
+  it('ignores player shots out of turn and repeat shots', () => {
+    let state = reducer(placeAll(), { type: 'start' });
+    state = reducer(state, { type: 'playerShot', index: 0 });
+    expect(state.turn).toBe('ai');
+    const unchanged = reducer(state, { type: 'playerShot', index: 5 });
+    expect(unchanged).toBe(state);
+    state = reducer(state, { type: 'aiShot' });
+    expect(state.turn).toBe('human');
+    const repeat = reducer(state, { type: 'playerShot', index: 0 });
+    expect(repeat).toBe(state);
+  });
+
+  it('declares the human winner when the enemy fleet is destroyed', () => {
+    let state = reducer(placeAll(), { type: 'start' });
+    const enemyCells = state.aiBoard.ships.flatMap((s) => s.cells);
+    for (const cell of enemyCells) {
+      state = { ...state, turn: 'human', phase: state.phase };
+      if (state.phase === 'gameover') break;
+      state = reducer(state, { type: 'playerShot', index: cell });
+    }
+    expect(state.phase).toBe('gameover');
+    expect(state.winner).toBe('human');
+  });
+
+  it('blocks shooting after the game is over', () => {
+    const over = { ...reducer(placeAll(), { type: 'start' }), phase: 'gameover' as const };
+    expect(reducer(over, { type: 'playerShot', index: 3 })).toBe(over);
+  });
+});

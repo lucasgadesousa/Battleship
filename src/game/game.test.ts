@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   allShipsSunk,
   canPlace,
+  cellName,
   createEmptyBoard,
+  describeShip,
   fireAt,
   placeShip,
   randomBoard,
@@ -109,6 +111,21 @@ describe('ai', () => {
   });
 });
 
+describe('ship descriptions', () => {
+  it('names cells in column-row notation', () => {
+    expect(cellName(0)).toBe('A1');
+    expect(cellName(toIndex(4, 2))).toBe('C5');
+    expect(cellName(99)).toBe('J10');
+  });
+
+  it('describes a ship by size, span and orientation', () => {
+    const board = placeShip(createEmptyBoard(), spec('cruiser'), toIndex(4, 2), 'horizontal')!;
+    expect(describeShip(board.ships[0])).toBe('Cruiser (3) — C5–E5, horizontal');
+    const vertical = placeShip(createEmptyBoard(), spec('destroyer'), toIndex(0, 0), 'vertical')!;
+    expect(describeShip(vertical.ships[0])).toBe('Destroyer (2) — A1–A2, vertical');
+  });
+});
+
 describe('reducer', () => {
   const placeAll = () => {
     let state = createInitialState();
@@ -150,6 +167,16 @@ describe('reducer', () => {
     }
     expect(state.phase).toBe('gameover');
     expect(state.winner).toBe('human');
+  });
+
+  it('logs the full description of a destroyed ship', () => {
+    let state = reducer(placeAll(), { type: 'start' });
+    const target = state.aiBoard.ships.find((s) => s.id === 'destroyer')!;
+    for (const cell of target.cells) {
+      state = reducer({ ...state, turn: 'human' }, { type: 'playerShot', index: cell });
+    }
+    expect(state.log[0]).toBe(`You sank the enemy ${describeShip(target)}!`);
+    expect(state.log[0]).toContain('Destroyer (2)');
   });
 
   it('blocks shooting after the game is over', () => {

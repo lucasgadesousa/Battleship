@@ -17,6 +17,27 @@ export const toCoords = (index: number): { row: number; col: number } => ({
 
 export const createEmptyBoard = (): Board => ({ ships: [], hits: [], misses: [] });
 
+const COLUMN_LABELS = 'ABCDEFGHIJ';
+
+/** Human readable coordinate for a cell, e.g. 42 -> "C5". */
+export const cellName = (index: number): string => {
+  const { row, col } = toCoords(index);
+  return `${COLUMN_LABELS[col]}${row + 1}`;
+};
+
+/** Span a ship covers, e.g. "C5–G5". */
+export const shipRange = (ship: Ship): string => {
+  const cells = [...ship.cells].sort((a, b) => a - b);
+  return `${cellName(cells[0])}–${cellName(cells[cells.length - 1])}`;
+};
+
+export const shipOrientation = (ship: Ship): Orientation =>
+  ship.cells.length > 1 && ship.cells[1] - ship.cells[0] === 1 ? 'horizontal' : 'vertical';
+
+/** Full description of a ship, e.g. "Cruiser (3) — C5–E5, horizontal". */
+export const describeShip = (ship: Ship): string =>
+  `${ship.name} (${ship.size}) — ${shipRange(ship)}, ${shipOrientation(ship)}`;
+
 /**
  * Cells a ship would occupy, or null when it would run off the edge of the
  * board. Horizontal ships must stay inside a single row.

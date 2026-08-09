@@ -19,6 +19,11 @@ Battle**, then trade shots with the AI until one fleet is gone.
 - **Random fleet** / **Clear** for quick setup.
 - **Start Battle** unlocks once all five ships are on the board.
 
+Each board shows a fleet roster: a destroyed ship is described in full (name,
+size, span and orientation, e.g. `Destroyed — C5–G5, horizontal, 5 hits`), and
+the battle log records the coordinate of every shot. Enemy ships stay hidden
+until they are sunk.
+
 ## Development
 
 Requires Node 22 (see `.nvmrc`).

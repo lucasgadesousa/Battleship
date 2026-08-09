@@ -1,8 +1,45 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { BoardView } from './components/Board';
-import { canPlace, isShipSunk, shipCells } from './game/board';
+import { canPlace, isShipSunk, shipCells, shipOrientation, shipRange } from './game/board';
 import { allShipsPlaced, createInitialState, reducer } from './game/state';
-import { SHIP_SPECS, type ShipId } from './game/types';
+import { SHIP_SPECS, type Board, type ShipId } from './game/types';
+
+/**
+ * Per-ship roster for a fleet. Sunk ships are described in full (size, span,
+ * orientation); enemy ships that are still afloat stay hidden.
+ */
+function FleetStatus({ board, hideAfloat }: { board: Board; hideAfloat?: boolean }) {
+  const sunkCount = board.ships.filter(isShipSunk).length;
+  return (
+    <div className="fleet-status">
+      <p className="counter">
+        Sunk: {sunkCount} / {SHIP_SPECS.length}
+      </p>
+      <ul className="fleet-status-list">
+        {SHIP_SPECS.map((spec) => {
+          const ship = board.ships.find((s) => s.id === spec.id);
+          const sunk = ship ? isShipSunk(ship) : false;
+          return (
+            <li key={spec.id} className={sunk ? 'sunk' : 'afloat'}>
+              <span className="fleet-status-name">
+                {spec.name} ({spec.size})
+              </span>
+              <span className="fleet-status-detail">
+                {sunk && ship
+                  ? `Destroyed — ${shipRange(ship)}, ${shipOrientation(ship)}, ${ship.size} hits`
+                  : hideAfloat
+                    ? 'Position unknown'
+                    : ship
+                      ? `Afloat — ${shipRange(ship)}, ${ship.hits.length}/${ship.size} hits`
+                      : 'Not placed'}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
 
 const AI_DELAY_MS = 700;
 
@@ -54,9 +91,6 @@ export default function App() {
   const placedIds = new Set(state.playerBoard.ships.map((ship) => ship.id));
   const ready = allShipsPlaced(state.playerBoard);
 
-  const enemyShipsSunk = state.aiBoard.ships.filter(isShipSunk).length;
-  const playerShipsSunk = state.playerBoard.ships.filter(isShipSunk).length;
-
   const status =
     state.phase === 'placement'
       ? ready
@@ -93,7 +127,7 @@ export default function App() {
             onCellEnter={(index) => setHover(index)}
             onCellLeave={() => setHover(null)}
           />
-          <p className="counter">Ships lost: {playerShipsSunk} / {SHIP_SPECS.length}</p>
+          <FleetStatus board={state.playerBoard} />
         </section>
 
         <section className="panel controls">
@@ -176,7 +210,7 @@ export default function App() {
             interactive={state.phase === 'playing' && state.turn === 'human'}
             onCellClick={handlePlayerCell}
           />
-          <p className="counter">Enemy ships sunk: {enemyShipsSunk} / {SHIP_SPECS.length}</p>
+          <FleetStatus board={state.aiBoard} hideAfloat={state.phase !== 'gameover'} />
         </section>
       </main>
 

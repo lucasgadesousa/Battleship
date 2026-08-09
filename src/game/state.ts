@@ -6,7 +6,15 @@ import {
   type Player,
   type ShipId,
 } from './types';
-import { createEmptyBoard, fireAt, placeShip, randomBoard, removeShip } from './board';
+import {
+  cellName,
+  createEmptyBoard,
+  describeShip,
+  fireAt,
+  placeShip,
+  randomBoard,
+  removeShip,
+} from './board';
 import { chooseShot, createAiState, updateAiAfterShot, type AiState } from './ai';
 
 export interface GameState {
@@ -113,20 +121,21 @@ export const reducer = (state: GameState, action: Action): GameState => {
       const { board, hit, sunk, allSunk } = fireAt(state.aiBoard, action.index);
       if (board === state.aiBoard) return state; // repeat shot
       const entry = sunk
-        ? `You sank the enemy ${sunk.name}!`
+        ? `You sank the enemy ${describeShip(sunk)}!`
         : hit
-          ? 'You hit an enemy ship.'
-          : 'You missed.';
+          ? `You hit an enemy ship at ${cellName(action.index)}.`
+          : `You missed at ${cellName(action.index)}.`;
+      const log = pushLog(state.log, entry);
       if (allSunk) {
         return {
           ...state,
           aiBoard: board,
           phase: 'gameover',
           winner: 'human',
-          log: pushLog(state.log, 'You destroyed the entire enemy fleet. Victory!'),
+          log: pushLog(log, 'You destroyed the entire enemy fleet. Victory!'),
         };
       }
-      return { ...state, aiBoard: board, turn: 'ai', log: pushLog(state.log, entry) };
+      return { ...state, aiBoard: board, turn: 'ai', log };
     }
 
     case 'aiShot': {
@@ -135,10 +144,11 @@ export const reducer = (state: GameState, action: Action): GameState => {
       const { board, hit, sunk, allSunk } = fireAt(state.playerBoard, index);
       const nextAi = updateAiAfterShot(ai, board, index, hit, sunk !== null);
       const entry = sunk
-        ? `The enemy sank your ${sunk.name}!`
+        ? `The enemy sank your ${describeShip(sunk)}!`
         : hit
-          ? 'The enemy hit your ship.'
-          : 'The enemy missed.';
+          ? `The enemy hit your ship at ${cellName(index)}.`
+          : `The enemy missed at ${cellName(index)}.`;
+      const log = pushLog(state.log, entry);
       if (allSunk) {
         return {
           ...state,
@@ -146,7 +156,7 @@ export const reducer = (state: GameState, action: Action): GameState => {
           ai: nextAi,
           phase: 'gameover',
           winner: 'ai',
-          log: pushLog(state.log, 'Your fleet has been destroyed. Defeat.'),
+          log: pushLog(log, 'Your fleet has been destroyed. Defeat.'),
         };
       }
       return {
@@ -154,7 +164,7 @@ export const reducer = (state: GameState, action: Action): GameState => {
         playerBoard: board,
         ai: nextAi,
         turn: 'human',
-        log: pushLog(state.log, entry),
+        log,
       };
     }
 

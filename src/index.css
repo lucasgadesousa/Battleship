@@ -1,14 +1,16 @@
 :root {
   --deep: #04121f;
   --deep-2: #082438;
-  --sea: #0e4f78;
-  --sea-light: #1b6ea3;
-  --grid-line: rgba(140, 205, 245, 0.28);
-  --ship: #b8c6d1;
-  --ship-dark: #7d8b98;
-  --hit: #ef4444;
-  --sunk: #7f1d1d;
-  --miss: #cbd5e1;
+  --sea: #1878b4;
+  --sea-light: #3ba0dd;
+  --grid-line: rgba(190, 232, 255, 0.45);
+  --ship: #e2e8f0;
+  --ship-dark: #94a3b8;
+  --hit: #f97316;
+  --sunk: #b91c1c;
+  /* Explored water is deliberately much darker than untouched water. */
+  --miss: #0a1b2a;
+  --miss-mark: #7dd3fc;
   --accent: #38bdf8;
   --text: #e6f2fb;
 
@@ -114,9 +116,10 @@ body {
   padding: 0;
   border: 1px solid var(--grid-line);
   border-radius: 4px;
-  background: linear-gradient(180deg, var(--sea) 0%, #0a3a59 100%);
+  background: linear-gradient(180deg, var(--sea-light) 0%, var(--sea) 100%);
   color: #fff;
-  font-size: 1rem;
+  font-size: 1.05rem;
+  font-weight: 700;
   line-height: 1;
   cursor: pointer;
   transition:
@@ -129,28 +132,32 @@ body {
 }
 
 .cell:not(:disabled):hover {
-  background: var(--sea-light);
+  background: #7dd3fc;
+  border-color: #ffffff;
   transform: scale(1.06);
 }
 
 .cell-ship {
   background: linear-gradient(180deg, var(--ship) 0%, var(--ship-dark) 100%);
-  border-color: #dbe6ef;
+  border-color: #ffffff;
 }
 
 .cell-hit {
-  background: radial-gradient(circle, #fca5a5 0%, var(--hit) 70%);
-  border-color: #fecaca;
+  background: var(--hit);
+  border-color: #fff7ed;
+  color: #1a0a00;
 }
 
 .cell-ship-sunk {
-  background: radial-gradient(circle, var(--hit) 0%, var(--sunk) 75%);
-  border-color: #fca5a5;
+  background: var(--sunk);
+  border-color: #fecaca;
+  color: #ffffff;
 }
 
 .cell-miss {
-  background: #123c58;
-  color: var(--miss);
+  background: var(--miss);
+  border-color: rgba(125, 211, 252, 0.35);
+  color: var(--miss-mark);
 }
 
 .cell-preview {
@@ -161,6 +168,40 @@ body {
 .cell-preview-invalid {
   background: rgba(239, 68, 68, 0.6);
   border-color: #fecaca;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.72rem;
+  color: #b9d9ee;
+}
+
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-swatch {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  border: 1px solid var(--grid-line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.legend-swatch.cell-empty {
+  background: linear-gradient(180deg, var(--sea-light) 0%, var(--sea) 100%);
 }
 
 .counter {

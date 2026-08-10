@@ -41,6 +41,27 @@ function FleetStatus({ board, hideAfloat }: { board: Board; hideAfloat?: boolean
   );
 }
 
+/** Colour key for the cell states of a board. */
+function Legend({ own }: { own: boolean }) {
+  const items: { cls: string; mark?: string; text: string }[] = [
+    { cls: 'cell-empty', text: own ? 'Open water' : 'Not fired at' },
+    { cls: 'cell-miss', mark: '•', text: own ? 'Enemy missed' : 'Miss (already fired)' },
+    { cls: 'cell-hit', mark: '✕', text: 'Hit' },
+    { cls: 'cell-ship-sunk', mark: '✕', text: 'Sunk ship' },
+  ];
+  if (own) items.splice(1, 0, { cls: 'cell-ship', text: 'Your ship' });
+  return (
+    <ul className="legend">
+      {items.map((item) => (
+        <li key={item.text}>
+          <span className={`legend-swatch ${item.cls}`}>{item.mark ?? ''}</span>
+          {item.text}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 const AI_DELAY_MS = 700;
 
 export default function App() {
@@ -127,6 +148,7 @@ export default function App() {
             onCellEnter={(index) => setHover(index)}
             onCellLeave={() => setHover(null)}
           />
+          <Legend own />
           <FleetStatus board={state.playerBoard} />
         </section>
 
@@ -210,6 +232,7 @@ export default function App() {
             interactive={state.phase === 'playing' && state.turn === 'human'}
             onCellClick={handlePlayerCell}
           />
+          <Legend own={false} />
           <FleetStatus board={state.aiBoard} hideAfloat={state.phase !== 'gameover'} />
         </section>
       </main>

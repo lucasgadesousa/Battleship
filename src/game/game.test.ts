@@ -6,6 +6,7 @@ import {
   createEmptyBoard,
   describeShip,
   fireAt,
+  isBoardValid,
   placeShip,
   randomBoard,
   shipCells,
@@ -49,6 +50,34 @@ describe('placement', () => {
       expect(board.ships).toHaveLength(SHIP_SPECS.length);
       expect(new Set(cells).size).toBe(cells.length);
       expect(cells.every((c) => c >= 0 && c < 100)).toBe(true);
+      expect(isBoardValid(board)).toBe(true);
+    }
+  });
+
+  it('never accepts a placement that overlaps or leaves the grid', () => {
+    // Exhaustive: every ship, every start cell, both orientations.
+    const base = placeShip(createEmptyBoard(), spec('cruiser'), toIndex(4, 4), 'horizontal')!;
+    for (const s of SHIP_SPECS) {
+      if (s.id === 'cruiser') continue;
+      for (let start = 0; start < 100; start += 1) {
+        for (const orientation of ['horizontal', 'vertical'] as const) {
+          const next = placeShip(base, s, start, orientation);
+          if (!next) continue;
+          expect(isBoardValid(next)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('the reducer keeps the player board valid whatever the player clicks', () => {
+    let state = createInitialState();
+    for (let i = 0; i < 400; i += 1) {
+      const s = SHIP_SPECS[i % SHIP_SPECS.length];
+      state = reducer(state, { type: 'selectShip', id: s.id });
+      if (i % 7 === 0) state = reducer(state, { type: 'toggleOrientation' });
+      state = reducer(state, { type: 'placeShip', index: Math.floor(Math.random() * 100) });
+      expect(isBoardValid(state.playerBoard)).toBe(true);
+      expect(state.playerBoard.ships.length).toBeLessThanOrEqual(SHIP_SPECS.length);
     }
   });
 });

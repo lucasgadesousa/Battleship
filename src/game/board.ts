@@ -110,6 +110,29 @@ export const randomBoard = (
   return board;
 };
 
+/**
+ * Board invariant: every ship is inside the grid, contiguous, of its declared
+ * size, and shares no cell with another ship.
+ */
+export const isBoardValid = (board: Board): boolean => {
+  const seen = new Set<number>();
+  for (const ship of board.ships) {
+    if (ship.cells.length !== ship.size) return false;
+    const cells = [...ship.cells].sort((a, b) => a - b);
+    const step = shipOrientation(ship) === 'horizontal' ? 1 : BOARD_SIZE;
+    const { row: firstRow } = toCoords(cells[0]);
+    for (let i = 0; i < cells.length; i += 1) {
+      const cell = cells[i];
+      if (cell < 0 || cell >= CELL_COUNT) return false;
+      if (cell !== cells[0] + i * step) return false;
+      if (step === 1 && toCoords(cell).row !== firstRow) return false;
+      if (seen.has(cell)) return false;
+      seen.add(cell);
+    }
+  }
+  return true;
+};
+
 export const isShipSunk = (ship: Ship): boolean => ship.hits.length === ship.size;
 
 export const allShipsSunk = (board: Board): boolean =>

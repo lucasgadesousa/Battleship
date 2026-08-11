@@ -67,13 +67,15 @@ export const reducer = (state: GameState, action: Action): GameState => {
       return state.phase === 'placement' ? { ...state, selectedShip: action.id } : state;
 
     case 'setOrientation':
-      return { ...state, orientation: action.orientation };
+      return state.phase === 'placement' ? { ...state, orientation: action.orientation } : state;
 
     case 'toggleOrientation':
-      return {
-        ...state,
-        orientation: state.orientation === 'horizontal' ? 'vertical' : 'horizontal',
-      };
+      return state.phase === 'placement'
+        ? {
+            ...state,
+            orientation: state.orientation === 'horizontal' ? 'vertical' : 'horizontal',
+          }
+        : state;
 
     case 'placeShip': {
       if (state.phase !== 'placement' || !state.selectedShip) return state;
@@ -97,6 +99,7 @@ export const reducer = (state: GameState, action: Action): GameState => {
     }
 
     case 'resetPlacement':
+      if (state.phase !== 'placement') return state;
       return {
         ...state,
         playerBoard: createEmptyBoard(),

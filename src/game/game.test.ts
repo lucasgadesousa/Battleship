@@ -241,9 +241,16 @@ describe('reducer', () => {
       { type: 'removeShip', id: 'carrier' },
       { type: 'randomize' },
       { type: 'selectShip', id: 'carrier' },
+      { type: 'resetPlacement' },
+      { type: 'toggleOrientation' },
+      { type: 'setOrientation', orientation: 'vertical' },
     ] as const) {
       expect(reducer(playing, action)).toBe(playing);
     }
+    // Also true once the game is over.
+    const over = { ...playing, phase: 'gameover' as const };
+    expect(reducer(over, { type: 'resetPlacement' })).toBe(over);
+    expect(reducer(over, { type: 'toggleOrientation' })).toBe(over);
   });
 
   it('toggles orientation and starts a new game from scratch', () => {

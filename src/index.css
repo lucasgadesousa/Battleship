@@ -131,7 +131,8 @@ body {
   cursor: default;
 }
 
-.cell:not(:disabled):hover {
+/* The preview colours must survive the hovered state that triggers them. */
+.cell:not(:disabled, .cell-preview, .cell-preview-invalid):hover {
   background: #7dd3fc;
   border-color: #ffffff;
   transform: scale(1.06);
@@ -161,13 +162,13 @@ body {
 }
 
 .cell-preview {
-  background: rgba(56, 189, 248, 0.65);
-  border-color: #e0f2fe;
+  background: #22c55e;
+  border-color: #ecfdf5;
 }
 
 .cell-preview-invalid {
-  background: rgba(239, 68, 68, 0.6);
-  border-color: #fecaca;
+  background: #dc2626;
+  border-color: #fee2e2;
 }
 
 .legend {

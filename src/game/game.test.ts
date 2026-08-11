@@ -13,7 +13,7 @@ import {
   toIndex,
 } from './board';
 import { chooseShot, createAiState, updateAiAfterShot } from './ai';
-import { createInitialState, reducer } from './state';
+import { allShipsPlaced, createInitialState, reducer } from './state';
 import { SHIP_SPECS, type Board } from './types';
 
 const spec = (id: string) => SHIP_SPECS.find((s) => s.id === id)!;
@@ -206,6 +206,62 @@ describe('reducer', () => {
     }
     expect(state.log[0]).toBe(`You sank the enemy ${describeShip(target)}!`);
     expect(state.log[0]).toContain('Destroyer (2)');
+  });
+
+  it('auto-selects the next unplaced ship and keeps the selection on a rejected click', () => {
+    let state = createInitialState();
+    expect(state.selectedShip).toBe(SHIP_SPECS[0].id);
+    state = reducer(state, { type: 'placeShip', index: toIndex(0, 0) });
+    expect(state.selectedShip).toBe(SHIP_SPECS[1].id);
+    // Overlaps the carrier: the board and the selection must be untouched.
+    const rejected = reducer(state, { type: 'placeShip', index: toIndex(0, 0) });
+    expect(rejected).toBe(state);
+  });
+
+  it('removes a placed ship and re-selects it', () => {
+    let state = reducer(createInitialState(), { type: 'placeShip', index: toIndex(0, 0) });
+    state = reducer(state, { type: 'removeShip', id: 'carrier' });
+    expect(state.playerBoard.ships).toHaveLength(0);
+    expect(state.selectedShip).toBe('carrier');
+  });
+
+  it('randomize and resetPlacement fill and clear the fleet', () => {
+    let state = reducer(createInitialState(), { type: 'randomize' });
+    expect(allShipsPlaced(state.playerBoard)).toBe(true);
+    expect(isBoardValid(state.playerBoard)).toBe(true);
+    state = reducer(state, { type: 'resetPlacement' });
+    expect(state.playerBoard.ships).toHaveLength(0);
+    expect(state.selectedShip).toBe(SHIP_SPECS[0].id);
+  });
+
+  it('ignores placement actions once the battle has started', () => {
+    const playing = reducer(placeAll(), { type: 'start' });
+    for (const action of [
+      { type: 'placeShip', index: toIndex(9, 9) },
+      { type: 'removeShip', id: 'carrier' },
+      { type: 'randomize' },
+      { type: 'selectShip', id: 'carrier' },
+    ] as const) {
+      expect(reducer(playing, action)).toBe(playing);
+    }
+  });
+
+  it('toggles orientation and starts a new game from scratch', () => {
+    const rotated = reducer(createInitialState(), { type: 'toggleOrientation' });
+    expect(rotated.orientation).toBe('vertical');
+    expect(reducer(rotated, { type: 'toggleOrientation' }).orientation).toBe('horizontal');
+    const fresh = reducer(reducer(placeAll(), { type: 'start' }), { type: 'newGame' });
+    expect(fresh).toEqual(createInitialState());
+  });
+
+  it('declares the AI winner when it destroys the player fleet', () => {
+    let state = reducer(placeAll(), { type: 'start' });
+    for (let i = 0; i < 200 && state.phase === 'playing'; i += 1) {
+      state = reducer({ ...state, turn: 'ai' }, { type: 'aiShot' });
+    }
+    expect(state.phase).toBe('gameover');
+    expect(state.winner).toBe('ai');
+    expect(state.log[0]).toBe('Your fleet has been destroyed. Defeat.');
   });
 
   it('blocks shooting after the game is over', () => {
